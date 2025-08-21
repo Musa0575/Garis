@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Online Draw - 10 Levels</title>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; background: #f4f4f4; }
+    canvas { background: #fff; border: 2px solid #333; display: block; margin: 20px auto; }
+    button { margin: 5px; padding: 10px 20px; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h1>Online Draw - 10 Levels</h1>
+  <canvas id="gameCanvas" width="600" height="600"></canvas><br>
+  <button id="resetBtn">Reset Level</button>
+  <button id="nextBtn">Next Level</button>
+  <button id="autoSolveBtn">Solve (demo)</button>
+  <p id="msg"></p>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const msgEl = document.getElementById('msg');
+
+    let levels = [
+      // Tiap level punya nodes dan edges
+      { nodes:[{x:300,y:100},{x:100,y:300},{x:500,y:300},{x:200,y:500},{x:400,y:500}], edges:[[0,1],[0,2],[1,3],[2,4],[3,4],[1,2],[3,2],[4,1]] },
+      { nodes:[{x:200,y:200},{x:400,y:200},{x:400,y:400},{x:200,y:400}], edges:[[0,1],[1,2],[2,3],[3,0],[0,2],[1,3]] },
+      { nodes:[{x:300,y:100},{x:500,y:300},{x:300,y:500},{x:100,y:300}], edges:[[0,1],[1,2],[2,3],[3,0],[0,2],[1,3]] },
+      { nodes:[{x:300,y:100},{x:500,y:200},{x:400,y:400},{x:200,y:400},{x:100,y:200}], edges:[[0,1],[1,2],[2,3],[3,4],[4,0],[0,2],[2,4],[4,1],[1,3]] },
+      { nodes:[{x:300,y:80},{x:520,y:200},{x:440,y:480},{x:160,y:480},{x:80,y:200}], edges:[[0,1],[1,2],[2,3],[3,4],[4,0],[0,2],[2,4],[4,1],[1,3],[0,3]] },
+      { nodes:[{x:150,y:150},{x:450,y:150},{x:450,y:450},{x:150,y:450},{x:300,y:300}], edges:[[0,1],[1,2],[2,3],[3,0],[0,4],[1,4],[2,4],[3,4]] },
+      { nodes:[{x:300,y:100},{x:500,y:250},{x:420,y:500},{x:180,y:500},{x:100,y:250}], edges:[[0,1],[1,2],[2,3],[3,4],[4,0],[0,2],[2,4],[4,1],[1,3]] },
+      { nodes:[{x:200,y:200},{x:400,y:200},{x:400,y:400},{x:200,y:400},{x:300,y:300}], edges:[[0,1],[1,2],[2,3],[3,0],[0,4],[1,4],[2,4],[3,4],[0,2],[1,3]] },
+      { nodes:[{x:100,y:100},{x:500,y:100},{x:500,y:500},{x:100,y:500}], edges:[[0,1],[1,2],[2,3],[3,0],[0,2],[1,3]] },
+      { nodes:[{x:300,y:50},{x:550,y:200},{x:450,y:500},{x:150,y:500},{x:50,y:200}], edges:[[0,1],[1,2],[2,3],[3,4],[4,0],[0,2],[2,4],[4,1],[1,3],[0,3]] }
+    ];
+
+    let level = 0;
+    let nodes, edges;
+
+    function loadLevel(n){
+      nodes = levels[n].nodes;
+      edges = levels[n].edges.map(e=>({a:nodes[e[0]], b:nodes[e[1]], used:false}));
+      draw();
+      msgEl.textContent = 'Level '+(n+1);
+    }
+
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      ctx.strokeStyle = "#aaa";
+      ctx.lineWidth = 2;
+      edges.forEach(e=>{
+        ctx.beginPath();
+        ctx.moveTo(e.a.x,e.a.y);
+        ctx.lineTo(e.b.x,e.b.y);
+        ctx.strokeStyle = e.used?"#4caf50":"#aaa";
+        ctx.stroke();
+      });
+      ctx.fillStyle = "#ff5722";
+      nodes.forEach(n=>{
+        ctx.beginPath();
+        ctx.arc(n.x,n.y,8,0,Math.PI*2);
+        ctx.fill();
+      });
+    }
+
+    // --- DEMO SOLVER DENGAN ANIMASI HALUS ---
+    document.getElementById('autoSolveBtn').addEventListener('click', () => {
+      msgEl.textContent = '(Demo solver) Menyelesaikan...';
+      let i = 0;
+
+      function animateEdge(edge, callback) {
+        let progress = 0;
+        function drawStep() {
+          progress += 0.02; // ubah untuk kecepatan
+          if (progress > 1) progress = 1;
+
+          draw();
+          ctx.strokeStyle = "#4caf50";
+          ctx.lineWidth = 4;
+          ctx.beginPath();
+          ctx.moveTo(edge.a.x, edge.a.y);
+          ctx.lineTo(
+            edge.a.x + (edge.b.x - edge.a.x) * progress,
+            edge.a.y + (edge.b.y - edge.a.y) * progress
+          );
+          ctx.stroke();
+
+          if (progress < 1) {
+            requestAnimationFrame(drawStep);
+          } else {
+            edge.used = true;
+            if (callback) callback();
+          }
+        }
+        drawStep();
+      }
+
+      function step() {
+        if (i < edges.length) {
+          animateEdge(edges[i], () => {
+            i++;
+            step();
+          });
+        } else {
+          msgEl.textContent = 'Level selesai (demo).';
+        }
+      }
+
+      step();
+    });
+
+    document.getElementById('resetBtn').addEventListener('click',()=>loadLevel(level));
+    document.getElementById('nextBtn').addEventListener('click',()=>{
+      level=(level+1)%levels.length;
+      loadLevel(level);
+    });
+
+    loadLevel(level);
+  </script>
+</body>
+</html>
