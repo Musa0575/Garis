@@ -1,122 +1,154 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Online Draw - 10 Levels</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Online Draw Game</title>
   <style>
-    body { font-family: Arial, sans-serif; text-align: center; background: #f4f4f4; }
-    canvas { background: #fff; border: 2px solid #333; display: block; margin: 20px auto; }
-    button { margin: 5px; padding: 10px 20px; font-size: 16px; }
+    body { font-family: sans-serif; text-align: center; background: #f4f4f4; }
+    canvas { border: 2px solid #333; background: #fff; margin: 10px auto; display: block; }
+    button { margin: 5px; padding: 8px 16px; font-size: 16px; border-radius: 8px; }
   </style>
 </head>
 <body>
   <h1>Online Draw - 10 Levels</h1>
-  <canvas id="gameCanvas" width="600" height="600"></canvas><br>
-  <button id="resetBtn">Reset Level</button>
-  <button id="nextBtn">Next Level</button>
-  <button id="autoSolveBtn">Solve (demo)</button>
-  <p id="msg"></p>
+  <p id="msg">Klik dua titik untuk menggambar garis</p>
+  <canvas id="gameCanvas" width="600" height="400"></canvas>
+  <div>
+    <button id="resetBtn">Reset Level</button>
+    <button id="nextBtn">Next Level</button>
+    <button id="autoSolveBtn">Solve (demo)</button>
+  </div>
 
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
     const msgEl = document.getElementById('msg');
 
-    let levels = [
-      // Tiap level punya nodes dan edges
-      { nodes:[{x:300,y:100},{x:100,y:300},{x:500,y:300},{x:200,y:500},{x:400,y:500}], edges:[[0,1],[0,2],[1,3],[2,4],[3,4],[1,2],[3,2],[4,1]] },
-      { nodes:[{x:200,y:200},{x:400,y:200},{x:400,y:400},{x:200,y:400}], edges:[[0,1],[1,2],[2,3],[3,0],[0,2],[1,3]] },
-      { nodes:[{x:300,y:100},{x:500,y:300},{x:300,y:500},{x:100,y:300}], edges:[[0,1],[1,2],[2,3],[3,0],[0,2],[1,3]] },
-      { nodes:[{x:300,y:100},{x:500,y:200},{x:400,y:400},{x:200,y:400},{x:100,y:200}], edges:[[0,1],[1,2],[2,3],[3,4],[4,0],[0,2],[2,4],[4,1],[1,3]] },
-      { nodes:[{x:300,y:80},{x:520,y:200},{x:440,y:480},{x:160,y:480},{x:80,y:200}], edges:[[0,1],[1,2],[2,3],[3,4],[4,0],[0,2],[2,4],[4,1],[1,3],[0,3]] },
-      { nodes:[{x:150,y:150},{x:450,y:150},{x:450,y:450},{x:150,y:450},{x:300,y:300}], edges:[[0,1],[1,2],[2,3],[3,0],[0,4],[1,4],[2,4],[3,4]] },
-      { nodes:[{x:300,y:100},{x:500,y:250},{x:420,y:500},{x:180,y:500},{x:100,y:250}], edges:[[0,1],[1,2],[2,3],[3,4],[4,0],[0,2],[2,4],[4,1],[1,3]] },
-      { nodes:[{x:200,y:200},{x:400,y:200},{x:400,y:400},{x:200,y:400},{x:300,y:300}], edges:[[0,1],[1,2],[2,3],[3,0],[0,4],[1,4],[2,4],[3,4],[0,2],[1,3]] },
-      { nodes:[{x:100,y:100},{x:500,y:100},{x:500,y:500},{x:100,y:500}], edges:[[0,1],[1,2],[2,3],[3,0],[0,2],[1,3]] },
-      { nodes:[{x:300,y:50},{x:550,y:200},{x:450,y:500},{x:150,y:500},{x:50,y:200}], edges:[[0,1],[1,2],[2,3],[3,4],[4,0],[0,2],[2,4],[4,1],[1,3],[0,3]] }
-    ];
+    let level = 1;
+    let nodes = [];
+    let edges = [];
+    let selectedNode = null;
 
-    let level = 0;
-    let nodes, edges;
-
-    function loadLevel(n){
-      nodes = levels[n].nodes;
-      edges = levels[n].edges.map(e=>({a:nodes[e[0]], b:nodes[e[1]], used:false}));
+    // === LEVEL DATA ===
+    function loadLevel(lv){
+      nodes = [];
+      edges = [];
+      // contoh node (acak posisi biar beda tiap level)
+      for(let i=0;i<5+lv;i++){
+        nodes.push({x:100+Math.random()*400,y:50+Math.random()*300});
+      }
+      // buat edges acak
+      for(let i=0;i<nodes.length-1;i++){
+        edges.push({a:nodes[i], b:nodes[i+1], used:false});
+      }
       draw();
-      msgEl.textContent = 'Level '+(n+1);
+      msgEl.textContent = `Level ${lv}: Klik dua titik untuk menghubungkan.`;
     }
 
+    // === DRAW BOARD ===
     function draw(){
       ctx.clearRect(0,0,canvas.width,canvas.height);
-      ctx.strokeStyle = "#aaa";
+      // edges
+      ctx.strokeStyle = "#999";
       ctx.lineWidth = 2;
-      edges.forEach(e=>{
+      for(let e of edges){
         ctx.beginPath();
-        ctx.moveTo(e.a.x,e.a.y);
-        ctx.lineTo(e.b.x,e.b.y);
-        ctx.strokeStyle = e.used?"#4caf50":"#aaa";
+        ctx.moveTo(e.a.x, e.a.y);
+        ctx.lineTo(e.b.x, e.b.y);
         ctx.stroke();
-      });
-      ctx.fillStyle = "#ff5722";
-      nodes.forEach(n=>{
+      }
+      // used edges
+      ctx.strokeStyle = "#4caf50";
+      ctx.lineWidth = 4;
+      for(let e of edges){
+        if(e.used){
+          ctx.beginPath();
+          ctx.moveTo(e.a.x, e.a.y);
+          ctx.lineTo(e.b.x, e.b.y);
+          ctx.stroke();
+        }
+      }
+      // nodes
+      for(let n of nodes){
+        ctx.fillStyle = "#000";
         ctx.beginPath();
         ctx.arc(n.x,n.y,8,0,Math.PI*2);
         ctx.fill();
-      });
+      }
     }
 
-    // --- DEMO SOLVER DENGAN ANIMASI HALUS ---
-    document.getElementById('autoSolveBtn').addEventListener('click', () => {
-      msgEl.textContent = '(Demo solver) Menyelesaikan...';
-      let i = 0;
-
-      function animateEdge(edge, callback) {
-        let progress = 0;
-        function drawStep() {
-          progress += 0.02; // ubah untuk kecepatan
-          if (progress > 1) progress = 1;
-
-          draw();
-          ctx.strokeStyle = "#4caf50";
-          ctx.lineWidth = 4;
-          ctx.beginPath();
-          ctx.moveTo(edge.a.x, edge.a.y);
-          ctx.lineTo(
-            edge.a.x + (edge.b.x - edge.a.x) * progress,
-            edge.a.y + (edge.b.y - edge.a.y) * progress
-          );
-          ctx.stroke();
-
-          if (progress < 1) {
-            requestAnimationFrame(drawStep);
-          } else {
-            edge.used = true;
-            if (callback) callback();
-          }
+    // === ANIMASI GARIS ===
+    function animateEdge(edge, callback){
+      let progress = 0;
+      function step(){
+        progress += 0.02;
+        if(progress > 1) progress = 1;
+        draw();
+        ctx.strokeStyle = "#4caf50";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(edge.a.x, edge.a.y);
+        ctx.lineTo(edge.a.x + (edge.b.x-edge.a.x)*progress, edge.a.y + (edge.b.y-edge.a.y)*progress);
+        ctx.stroke();
+        if(progress < 1){
+          requestAnimationFrame(step);
+        } else {
+          edge.used = true;
+          if(callback) callback();
         }
-        drawStep();
       }
+      step();
+    }
 
-      function step() {
-        if (i < edges.length) {
-          animateEdge(edges[i], () => {
-            i++;
-            step();
-          });
+    // === CLICK EVENT ===
+    canvas.addEventListener('click',(e)=>{
+      let rect = canvas.getBoundingClientRect();
+      let x = e.clientX - rect.left;
+      let y = e.clientY - rect.top;
+      let clickedNode = null;
+      for(let n of nodes){
+        if(Math.hypot(n.x-x,n.y-y)<20){
+          clickedNode = n;
+          break;
+        }
+      }
+      if(clickedNode){
+        if(!selectedNode){
+          selectedNode = clickedNode;
+          msgEl.textContent = "Titik awal dipilih, klik titik tujuan.";
+        } else {
+          let edge = edges.find(ed => ((ed.a===selectedNode && ed.b===clickedNode) || (ed.b===selectedNode && ed.a===clickedNode)) && !ed.used);
+          if(edge){
+            animateEdge(edge, ()=>{
+              msgEl.textContent = "Garis berhasil ditarik!";
+            });
+          } else {
+            msgEl.textContent = "Tidak ada jalur valid.";
+          }
+          selectedNode = null;
+        }
+      }
+    });
+
+    // === BUTTONS ===
+    document.getElementById('resetBtn').onclick = ()=> loadLevel(level);
+    document.getElementById('nextBtn').onclick = ()=>{ level++; if(level>10) level=1; loadLevel(level); };
+
+    document.getElementById('autoSolveBtn').onclick = ()=>{
+      msgEl.textContent = '(Demo solver berjalan...)';
+      let i=0;
+      function step(){
+        if(i<edges.length){
+          animateEdge(edges[i], ()=>{ i++; step(); });
         } else {
           msgEl.textContent = 'Level selesai (demo).';
         }
       }
-
       step();
-    });
+    };
 
-    document.getElementById('resetBtn').addEventListener('click',()=>loadLevel(level));
-    document.getElementById('nextBtn').addEventListener('click',()=>{
-      level=(level+1)%levels.length;
-      loadLevel(level);
-    });
-
+    // === START ===
     loadLevel(level);
   </script>
 </body>
