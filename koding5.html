@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Online Draw Game</title>
+  <style>
+    body { font-family: sans-serif; text-align: center; background: #f4f4f4; margin:0; }
+    h1 { margin: 15px 0 5px; }
+    canvas { border: 2px solid #333; background: linear-gradient(135deg,#6a11cb,#2575fc); margin: 10px auto; display: block; border-radius:12px; }
+    button { margin: 5px; padding: 10px 18px; font-size: 16px; border-radius: 8px; border:none; cursor:pointer; transition:0.2s; }
+    button:hover { transform:scale(1.05); }
+    #timerBar { width: 80%; height: 20px; margin: 10px auto; background:#ddd; border-radius: 10px; overflow: hidden; }
+    #timerFill { height: 100%; width:100%; background:limegreen; transition:width 1s linear, background 0.5s; }
+    #msg { font-size: 18px; margin: 10px; }
+    #popup {
+      position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+      background:rgba(255,255,255,0.9); padding:20px 40px; border-radius:12px;
+      font-size:26px; font-weight:bold; display:none; animation: fadein 1s;
+    }
+    @keyframes fadein { from{opacity:0;} to{opacity:1;} }
+    @keyframes flash { 0%,100%{background:red;} 50%{background:#2575fc;} }
+  </style>
+</head>
+<body>
+  <h1>Online Draw - 10 Levels</h1>
+  <div id="timerBar"><div id="timerFill"></div></div>
+  <p id="msg">Klik dua titik untuk menggambar garis</p>
+  <canvas id="gameCanvas" width="600" height="400"></canvas>
+  <div>
+    <button id="resetBtn" style="background:#f0ad4e;">🔄 Reset Level</button>
+    <button id="nextBtn" style="background:#5bc0de;">➡️ Next Level</button>
+    <button id="autoSolveBtn" style="background:#5cb85c; color:white;">🤖 Solve (demo)</button>
+  </div>
+  <div id="popup">🎉 Level Clear!</div>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const msgEl = document.getElementById('msg');
+    const timerFill = document.getElementById('timerFill');
+    const popup = document.getElementById('popup');
+
+    let level = 1;
+    let nodes = [];
+    let edges = [];
+    let selectedNode = null;
+
+    // === TIMER ===
+    let timeLeft = 30;
+    let timerInterval = null;
+
+    function startTimer(){
+      clearInterval(timerInterval);
+      timeLeft = 30;
+      updateTimerBar();
+      timerInterval = setInterval(()=>{
+        timeLeft--;
+        updateTimerBar();
+        if(timeLeft <= 0){
+          clearInterval(timerInterval);
+          msgEl.textContent = "⏰ Waktu habis! Level diulang.";
+          canvas.style.animation = "flash 0.6s 3";
+          setTimeout(()=>{ canvas.style.animation=""; loadLevel(level); },2000);
+        }
+      },1000);
+    }
+
+    function updateTimerBar(){
+      let percent = (timeLeft/30)*100;
+      timerFill.style.width = percent+"%";
+      if(timeLeft>20) timerFill.style.background="limegreen";
+      else if(timeLeft>10) timerFill.style.background="orange";
+      else timerFill.style.background="red";
+    }
+
+    // === LEVEL DATA ===
+    function loadLevel(lv){
+      nodes = [];
+      edges = [];
+      selectedNode = null;
+      popup.style.display="none";
+
+      // node random warna
+      for(let i=0;i<5+lv;i++){
+        let colors=["#ff4757","#ffa502","#2ed573","#1e90ff","#3742fa","#e84393"];
+        let color = colors[Math.floor(Math.random()*colors.length)];
+        nodes.push({x:100+Math.random()*400,y:50+Math.random()*300,color:color});
+      }
+      // buat edges acak
+      for(let i=0;i<nodes.length-1;i++){
+        edges.push({a:nodes[i], b:nodes[i+1], used:false});
+      }
+      draw();
+      msgEl.textContent = `Level ${lv}: Klik dua titik untuk menghubungkan.`;
+      startTimer();
+    }
+
+    // === DRAW BOARD ===
+    function draw(){
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+      // edges
+      ctx.strokeStyle = "rgba(255,255,255,0.5)";
+      ctx.lineWidth = 2;
+      for(let e of edges){
+        ctx.beginPath();
+        ctx.moveTo(e.a.x, e.a.y);
+        ctx.lineTo(e.b.x, e.b.y);
+        ctx.stroke();
+      }
+      // used edges
+      ctx.strokeStyle = "#4caf50";
+      ctx.lineWidth = 4;
+      for(let e of edges){
+        if(e.used){
+          ctx.beginPath();
+          ctx.moveTo(e.a.x, e.a.y);
+          ctx.lineTo(e.b.x, e.b.y);
+          ctx.stroke();
+        }
+      }
+      // nodes
+      for(let n of nodes){
+        ctx.fillStyle = n.color;
+        ctx.beginPath();
+        ctx.arc(n.x,n.y,10,0,Math.PI*2);
+        ctx.fill();
+        if(n===selectedNode){ // glow efek
+          ctx.strokeStyle="white";
+          ctx.lineWidth=3;
+          ctx.beginPath();
+          ctx.arc(n.x,n.y,15,0,Math.PI*2);
+          ctx.stroke();
+        }
+      }
+    }
+
+    // === ANIMASI GARIS ===
+    function animateEdge(edge, callback){
+      let progress = 0;
+      function step(){
+        progress += 0.03;
+        if(progress > 1) progress = 1;
+        draw();
+        ctx.strokeStyle = "#4caf50";
+        ctx.lineWidth = 4;
+        ctx.beginPath();
+        ctx.moveTo(edge.a.x, edge.a.y);
+        ctx.lineTo(edge.a.x + (edge.b.x-edge.a.x)*progress, edge.a.y + (edge.b.y-edge.a.y)*progress);
+        ctx.stroke();
+        if(progress < 1){
+          requestAnimationFrame(step);
+        } else {
+          edge.used = true;
+          if(callback) callback();
+        }
+      }
+      step();
+    }
+
+    // === CLICK EVENT ===
+    canvas.addEventListener('click',(e)=>{
+      let rect = canvas.getBoundingClientRect();
+      let x = e.clientX - rect.left;
+      let y = e.clientY - rect.top;
+      let clickedNode = null;
+      for(let n of nodes){
+        if(Math.hypot(n.x-x,n.y-y)<20){
+          clickedNode = n;
+          break;
+        }
+      }
+      if(clickedNode){
+        if(!selectedNode){
+          selectedNode = clickedNode;
+          msgEl.textContent = "Titik awal dipilih, klik titik tujuan.";
+          draw();
+        } else {
+          let edge = edges.find(ed => ((ed.a===selectedNode && ed.b===clickedNode) || (ed.b===selectedNode && ed.a===clickedNode)) && !ed.used);
+          if(edge){
+            animateEdge(edge, ()=>{
+              msgEl.textContent = "✅ Garis berhasil ditarik!";
+              if(edges.every(e=>e.used)){
+                clearInterval(timerInterval);
+                popup.style.display="block";
+              }
+            });
+          } else {
+            msgEl.textContent = "❌ Tidak ada jalur valid.";
+          }
+          selectedNode = null;
+        }
+      }
+    });
+
+    // === BUTTONS ===
+    document.getElementById('resetBtn').onclick = ()=> loadLevel(level);
+    document.getElementById('nextBtn').onclick = ()=>{
+      level++;
+      if(level>10) level=1;
+      loadLevel(level);
+    };
+    document.getElementById('autoSolveBtn').onclick = ()=>{
+      msgEl.textContent = '(Demo solver berjalan...)';
+      let i=0;
+      function step(){
+        if(i<edges.length){
+          animateEdge(edges[i], ()=>{ i++; step(); });
+        } else {
+          msgEl.textContent = 'Level selesai (demo).';
+          clearInterval(timerInterval);
+          popup.style.display="block";
+        }
+      }
+      step();
+    };
+
+    // === START ===
+    loadLevel(level);
+  </script>
+</body>
+</html>
